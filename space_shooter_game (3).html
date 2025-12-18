@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Space Shooter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #000428, #004e92);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        #gameContainer {
+            position: relative;
+            max-width: 100vw;
+            max-height: 100vh;
+        }
+        
+        canvas {
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            background: #000;
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+        
+        #gameOver, #startScreen, #leaderboard {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            display: none;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        #gameOver h1, #startScreen h1, #leaderboard h1 {
+            font-size: 36px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        
+        #gameOver p, #startScreen p {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        
+        button {
+            background: #00ffff;
+            color: #000;
+            border: none;
+            padding: 12px 25px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+            touch-action: manipulation;
+        }
+        
+        button:hover, button:active {
+            background: #00cccc;
+            transform: scale(1.05);
+        }
+        
+        input {
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+            margin: 10px 0;
+            width: 250px;
+            max-width: 100%;
+            text-align: center;
+        }
+        
+        input::placeholder {
+            color: rgba(0, 255, 255, 0.5);
+        }
+        
+        #leaderboardList {
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .leaderboard-entry {
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .leaderboard-entry.current {
+            background: rgba(255, 215, 0, 0.2);
+            border: 2px solid gold;
+        }
+        
+        .rank {
+            font-weight: bold;
+            min-width: 40px;
+        }
+        
+        .name {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .score {
+            font-weight: bold;
+            min-width: 80px;
+            text-align: right;
+        }
+        
+        #touchControls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 20px;
+        }
+        
+        .touch-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(0, 255, 255, 0.3);
+            border: 2px solid #00ffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #00ffff;
+            user-select: none;
+            touch-action: none;
+        }
+        
+        .touch-btn:active {
+            background: rgba(0, 255, 255, 0.5);
+        }
+        
+        @media (max-width: 768px) {
+            #gameOver h1, #startScreen h1, #leaderboard h1 {
+                font-size: 28px;
+            }
+            
+            #gameOver p, #startScreen p {
+                font-size: 16px;
+            }
+            
+            canvas {
+                border-width: 1px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="startScreen">
+            <h1>SPACE SHOOTER</h1>
+            <p>Desktop: Frecce ← → e SPAZIO</p>
+            <p>Mobile: Tocca per muoverti e sparare</p>
+            <p>Distruggi le meteore!</p>
+            <p>Hai 3 vite (10 colpi per vita)</p>
+            <button onclick="startGame()">INIZIA</button>
+            <button onclick="showLeaderboard()">CLASSIFICA</button>
+        </div>
+        
+        <div id="gameOver">
+            <h1>GAME OVER</h1>
+            <p id="finalScore"></p>
+            <input type="text" id="playerName" placeholder="Inserisci il tuo nome" maxlength="20">
+            <div>
+                <button onclick="saveScore()">SALVA PUNTEGGIO</button>
+            </div>
+            <div>
+                <button onclick="restartGame()">RIGIOCA</button>
+                <button onclick="showLeaderboard()">CLASSIFICA</button>
+            </div>
+        </div>
+        
+        <div id="leaderboard">
+            <h1>🏆 CLASSIFICA 🏆</h1>
+            <div id="leaderboardList"></div>
+            <button onclick="hideLeaderboard()">CHIUDI</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Adatta canvas per mobile
+        function resizeCanvas() {
+            const maxWidth = Math.min(800, window.innerWidth - 20);
+            const maxHeight = Math.min(600, window.innerHeight - 20);
+            const scale = Math.min(maxWidth / 800, maxHeight / 600);
+            
+            canvas.style.width = (800 * scale) + 'px';
+            canvas.style.height = (600 * scale) + 'px';
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        let gameState = {
+            running: false,
+            score: 0,
+            lives: 3,
+            hitsPerLife: 0,
+            maxHitsPerLife: 10,
+            difficulty: 1,
+            frameCount: 0,
+            currentScoreId: null
+        };
+        
+        const keys = {};
+        let touchX = null;
+        let isTouching = false;
+        
+        const ship = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 80,
+            width: 50,
+            height: 50,
+            speed: 7
+        };
+        
+        let lasers = [];
+        let meteors = [];
+        let stars = [];
+        let autoShootTimer = 0;
+        
+        // Touch controls
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isTouching = true;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const touch = e.touches[0];
+            touchX = (touch.clientX - rect.left) * scaleX;
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isTouching) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const touch = e.touches[0];
+                touchX = (touch.clientX - rect.left) * scaleX;
+            }
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isTouching = false;
+            touchX = null;
+        });
+        
+        // Crea stelle di sfondo
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2
+            });
+        }
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (e.key === ' ' && gameState.running) {
+                e.preventDefault();
+                shootLaser();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        function shootLaser() {
+            lasers.push({
+                x: ship.x + ship.width / 2 - 2,
+                y: ship.y,
+                width: 4,
+                height: 15,
+                speed: 10
+            });
+        }
+        
+        function createMeteor() {
+            const size = 30 + Math.random() * 40;
+            meteors.push({
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                width: size,
+                height: size,
+                speed: (3 + Math.random() * 3) * gameState.difficulty,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.15
+            });
+        }
+        
+        function drawShip() {
+            ctx.save();
+            ctx.translate(ship.x + ship.width / 2, ship.y + ship.height / 2);
+            
+            ctx.fillStyle = '#00d4ff';
+            ctx.beginPath();
+            ctx.moveTo(0, -25);
+            ctx.lineTo(-20, 15);
+            ctx.lineTo(-15, 20);
+            ctx.lineTo(0, 15);
+            ctx.lineTo(15, 20);
+            ctx.lineTo(20, 15);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = '#0088cc';
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(-10, 10);
+            ctx.lineTo(0, 8);
+            ctx.lineTo(10, 10);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00ffff';
+            ctx.beginPath();
+            ctx.ellipse(0, -5, 8, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            const flameHeight = 8 + Math.random() * 4;
+            ctx.fillStyle = '#ff3300';
+            ctx.beginPath();
+            ctx.moveTo(-12, 20);
+            ctx.lineTo(-15, 20 + flameHeight);
+            ctx.lineTo(-9, 20 + flameHeight);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(12, 20);
+            ctx.lineTo(9, 20 + flameHeight);
+            ctx.lineTo(15, 20 + flameHeight);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath();
+            ctx.moveTo(-12, 20);
+            ctx.lineTo(-13, 20 + flameHeight * 0.6);
+            ctx.lineTo(-11, 20 + flameHeight * 0.6);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.moveTo(12, 20);
+            ctx.lineTo(11, 20 + flameHeight * 0.6);
+            ctx.lineTo(13, 20 + flameHeight * 0.6);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        function drawLasers() {
+            ctx.fillStyle = '#00ff00';
+            lasers.forEach(laser => {
+                ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ff00';
+                ctx.fillRect(laser.x, laser.y, laser.width, laser.height);
+                ctx.shadowBlur = 0;
+            });
+        }
+        
+        function drawMeteors() {
+            meteors.forEach(meteor => {
+                ctx.save();
+                ctx.translate(meteor.x + meteor.width / 2, meteor.y + meteor.height / 2);
+                ctx.rotate(meteor.rotation);
+                
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(139, 69, 19, 0.5)';
+                
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.arc(0, 0, meteor.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#654321';
+                
+                const numCraters = 3 + Math.floor(meteor.width / 15);
+                for (let i = 0; i < numCraters; i++) {
+                    const angle = (i / numCraters) * Math.PI * 2;
+                    const distance = meteor.width / 5;
+                    const x = Math.cos(angle) * distance;
+                    const y = Math.sin(angle) * distance;
+                    const size = meteor.width / 8 + Math.random() * meteor.width / 10;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.fillStyle = '#a0522d';
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+                    const x = Math.cos(angle) * meteor.width / 2.5;
+                    const y = Math.sin(angle) * meteor.width / 2.5;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, meteor.width / 12, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.strokeStyle = '#5c3317';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    const variation = 0.9 + Math.random() * 0.2;
+                    const x = Math.cos(angle) * meteor.width / 2 * variation;
+                    const y = Math.sin(angle) * meteor.width / 2 * variation;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                
+                ctx.restore();
+            });
+        }
+        
+        function drawStars() {
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+        }
+        
+        function drawUI() {
+            ctx.fillStyle = '#00ffff';
+            ctx.font = '24px Arial';
+            ctx.fillText(`Punteggio: ${gameState.score}`, 10, 30);
+            ctx.fillText(`Vite: ${gameState.lives}`, 10, 60);
+            ctx.fillText(`Colpi: ${gameState.hitsPerLife}/${gameState.maxHitsPerLife}`, 10, 90);
+            ctx.fillText(`Difficoltà: ${gameState.difficulty.toFixed(1)}x`, 10, 120);
+        }
+        
+        function updateShip() {
+            if ((keys['ArrowLeft'] || keys['a']) && ship.x > 0) {
+                ship.x -= ship.speed;
+            }
+            if ((keys['ArrowRight'] || keys['d']) && ship.x < canvas.width - ship.width) {
+                ship.x += ship.speed;
+            }
+            
+            // Touch control
+            if (touchX !== null) {
+                const targetX = touchX - ship.width / 2;
+                const diff = targetX - ship.x;
+                
+                if (Math.abs(diff) > 5) {
+                    ship.x += Math.sign(diff) * Math.min(Math.abs(diff) * 0.2, ship.speed);
+                }
+                
+                ship.x = Math.max(0, Math.min(canvas.width - ship.width, ship.x));
+            }
+        }
+        
+        function updateLasers() {
+            lasers = lasers.filter(laser => {
+                laser.y -= laser.speed;
+                return laser.y > 0;
+            });
+        }
+        
+        function updateMeteors() {
+            meteors.forEach(meteor => {
+                meteor.y += meteor.speed;
+                meteor.rotation += meteor.rotationSpeed;
+            });
+            
+            meteors = meteors.filter(meteor => meteor.y < canvas.height);
+        }
+        
+        function updateStars() {
+            stars.forEach(star => {
+                star.y += 1.5;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+        }
+        
+        function checkCollisions() {
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                for (let j = meteors.length - 1; j >= 0; j--) {
+                    if (lasers[i] && meteors[j] &&
+                        lasers[i].x < meteors[j].x + meteors[j].width &&
+                        lasers[i].x + lasers[i].width > meteors[j].x &&
+                        lasers[i].y < meteors[j].y + meteors[j].height &&
+                        lasers[i].y + lasers[i].height > meteors[j].y) {
+                        
+                        lasers.splice(i, 1);
+                        meteors.splice(j, 1);
+                        gameState.score += 10;
+                        break;
+                    }
+                }
+            }
+            
+            for (let i = meteors.length - 1; i >= 0; i--) {
+                if (ship.x < meteors[i].x + meteors[i].width &&
+                    ship.x + ship.width > meteors[i].x &&
+                    ship.y < meteors[i].y + meteors[i].height &&
+                    ship.y + ship.height > meteors[i].y) {
+                    
+                    meteors.splice(i, 1);
+                    gameState.hitsPerLife++;
+                    
+                    if (gameState.hitsPerLife >= gameState.maxHitsPerLife) {
+                        gameState.lives--;
+                        gameState.hitsPerLife = 0;
+                        
+                        if (gameState.lives <= 0) {
+                            endGame();
+                        }
+                    }
+                }
+            }
+        }
+        
+        function gameLoop() {
+            if (!gameState.running) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            gameState.frameCount++;
+            
+            if (gameState.frameCount % 450 === 0) {
+                gameState.difficulty += 0.15;
+            }
+            
+            // Auto-shoot su mobile
+            if (isTouching) {
+                autoShootTimer++;
+                if (autoShootTimer > 15) {
+                    shootLaser();
+                    autoShootTimer = 0;
+                }
+            }
+            
+            updateStars();
+            drawStars();
+            
+            updateShip();
+            updateLasers();
+            updateMeteors();
+            checkCollisions();
+            
+            drawShip();
+            drawLasers();
+            drawMeteors();
+            drawUI();
+            
+            const meteorChance = 0.025 + (gameState.difficulty - 1) * 0.012;
+            if (Math.random() < meteorChance) {
+                createMeteor();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameState.running = true;
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.hitsPerLife = 0;
+            gameState.difficulty = 1;
+            gameState.frameCount = 0;
+            gameState.currentScoreId = null;
+            lasers = [];
+            meteors = [];
+            autoShootTimer = 0;
+            ship.x = canvas.width / 2 - 25;
+            gameLoop();
+        }
+        
+        async function endGame() {
+            gameState.running = false;
+            document.getElementById('finalScore').textContent = `Punteggio finale: ${gameState.score}`;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('playerName').value = '';
+        }
+        
+        async function saveScore() {
+            const name = document.getElementById('playerName').value.trim();
+            
+            if (!name) {
+                alert('Inserisci il tuo nome!');
+                return;
+            }
+            
+            try {
+                const scoreData = {
+                    name: name,
+                    score: gameState.score,
+                    timestamp: Date.now()
+                };
+                
+                const result = await window.storage.set(
+                    `score:${Date.now()}_${Math.random()}`,
+                    JSON.stringify(scoreData),
+                    true
+                );
+                
+                if (result) {
+                    gameState.currentScoreId = result.key;
+                    alert('Punteggio salvato!');
+                    showLeaderboard();
+                }
+            } catch (error) {
+                console.error('Errore nel salvare il punteggio:', error);
+                alert('Errore nel salvare il punteggio');
+            }
+        }
+        
+        async function showLeaderboard() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+            
+            try {
+                const result = await window.storage.list('score:', true);
+                const scores = [];
+                
+                if (result && result.keys) {
+                    for (const key of result.keys) {
+                        try {
+                            const data = await window.storage.get(key, true);
+                            if (data && data.value) {
+                                const scoreData = JSON.parse(data.value);
+                                scores.push({ key, ...scoreData });
+                            }
+                        } catch (e) {
+                            console.error('Errore nel leggere punteggio:', e);
+                        }
+                    }
+                }
+                
+                scores.sort((a, b) => b.score - a.score);
+                const top10 = scores.slice(0, 10);
+                
+                const listHtml = top10.map((entry, index) => {
+                    const isCurrent = entry.key === gameState.currentScoreId;
+                    return `
+                        <div class="leaderboard-entry ${isCurrent ? 'current' : ''}">
+                            <span class="rank">${index + 1}.</span>
+                            <span class="name">${entry.name}</span>
+                            <span class="score">${entry.score} pts</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('leaderboardList').innerHTML = 
+                    listHtml || '<p>Nessun punteggio salvato</p>';
+                document.getElementById('leaderboard').style.display = 'block';
+            } catch (error) {
+                console.error('Errore nel caricare la classifica:', error);
+                document.getElementById('leaderboardList').innerHTML = 
+                    '<p>Errore nel caricare la classifica</p>';
+                document.getElementById('leaderboard').style.display = 'block';
+            }
+        }
+        
+        function hideLeaderboard() {
+            document.getElementById('leaderboard').style.display = 'none';
+            document.getElementById('startScreen').style.display = 'block';
+        }
+        
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            startGame();
+        }
+        
+        document.getElementById('startScreen').style.display = 'block';
+    </script>
+</body>
+</html>
